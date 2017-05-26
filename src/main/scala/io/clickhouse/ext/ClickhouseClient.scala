@@ -3,21 +3,20 @@ package io.clickhouse.ext
 import ru.yandex.clickhouse.ClickHouseDataSource
 import io.clickhouse.ext.Utils._
 
-case class ClickhouseClient(clusterNameO: Option[String] = None)
-                           (implicit ds: ClickHouseDataSource){
+case class ClickhouseClient(clusterNameO: Option[String] = None)(implicit ds: ClickHouseDataSource) {
 
   import io.clickhouse.ext.ClickhouseResultSetExt._
 
-  def createDb(dbName: String){
+  def createDb(dbName: String) {
     query(s"create database if not exists $dbName")
   }
 
-  def dropDb(dbName: String){
+  def dropDb(dbName: String) {
     query(s"DROP DATABASE IF EXISTS $dbName")
   }
 
   def query(sql: String) = {
-    using(ds.getConnection){ conn =>
+    using(ds.getConnection) { conn =>
       val statement = conn.createStatement()
       val rs = statement.executeQuery(sql)
       rs
@@ -51,7 +50,7 @@ case class ClickhouseClient(clusterNameO: Option[String] = None)
   }
 
   private def runOnAllNodes(sql: String) = {
-    getClusterNodes().map{ nodeIp =>
+    getClusterNodes().map { nodeIp =>
       val nodeDs = ClickhouseConnectionFactory.get(nodeIp)
       val client = ClickhouseClient()(nodeDs)
       (nodeIp, client.query(sql))

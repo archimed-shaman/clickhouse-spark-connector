@@ -1,18 +1,17 @@
 package io.clickhouse.ext.spark
 
-import io.clickhouse.ext.{ClickhouseClient, ClickhouseConnectionFactory}
+import io.clickhouse.ext.{ ClickhouseClient, ClickhouseConnectionFactory }
 import ru.yandex.clickhouse.ClickHouseDataSource
 import io.clickhouse.ext.Utils._
 import org.apache.spark.sql.types._
 
-object ClickhouseSparkExt{
+object ClickhouseSparkExt {
   implicit def extraOperations(df: org.apache.spark.sql.DataFrame) = DataFrameExt(df)
 }
 
 case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable {
 
-  def dropClickhouseDb(dbName: String, clusterNameO: Option[String] = None)
-                      (implicit ds: ClickHouseDataSource){
+  def dropClickhouseDb(dbName: String, clusterNameO: Option[String] = None)(implicit ds: ClickHouseDataSource) {
     val client = ClickhouseClient(clusterNameO)(ds)
     clusterNameO match {
       case None => client.dropDb(dbName)
@@ -20,8 +19,7 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
     }
   }
 
-  def createClickhouseDb(dbName: String, clusterNameO: Option[String] = None)
-                        (implicit ds: ClickHouseDataSource){
+  def createClickhouseDb(dbName: String, clusterNameO: Option[String] = None)(implicit ds: ClickHouseDataSource) {
     val client = ClickhouseClient(clusterNameO)(ds)
     clusterNameO match {
       case None => client.createDb(dbName)
@@ -29,8 +27,7 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
     }
   }
 
-  def createClickhouseTable(dbName: String, tableName: String, partitionColumnName: String, indexColumns: Seq[String], clusterNameO: Option[String] = None)
-                           (implicit ds: ClickHouseDataSource){
+  def createClickhouseTable(dbName: String, tableName: String, partitionColumnName: String, indexColumns: Seq[String], clusterNameO: Option[String] = None)(implicit ds: ClickHouseDataSource) {
     val client = ClickhouseClient(clusterNameO)(ds)
     val sqlStmt = createClickhouseTableDefinitionSQL(dbName, tableName, partitionColumnName, indexColumns)
     clusterNameO match {
@@ -44,8 +41,7 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
     }
   }
 
-  def saveToClickhouse(dbName: String, tableName: String, partitionFunc: (org.apache.spark.sql.Row) => java.sql.Date, partitionColumnName: String = "mock_date", clusterNameO: Option[String] = None, batchSize: Int = 100000)
-                      (implicit ds: ClickHouseDataSource)={
+  def saveToClickhouse(dbName: String, tableName: String, partitionFunc: (org.apache.spark.sql.Row) => java.sql.Date, partitionColumnName: String = "mock_date", clusterNameO: Option[String] = None, batchSize: Int = 100000)(implicit ds: ClickHouseDataSource) = {
 
     val defaultHost = ds.getHost
     val defaultPort = ds.getPort
@@ -62,7 +58,7 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
     val schema = df.schema
 
     // following code is going to be run on executors
-    val insertResults = df.rdd.mapPartitions((partition: Iterator[org.apache.spark.sql.Row])=>{
+    val insertResults = df.rdd.mapPartitions((partition: Iterator[org.apache.spark.sql.Row]) => {
 
       val rnd = scala.util.Random.nextInt(clickHouseHosts.length)
       val targetHost = clickHouseHosts(rnd)
@@ -77,7 +73,7 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
         var totalInsert = 0
         var counter = 0
 
-        while(partition.hasNext){
+        while (partition.hasNext) {
 
           counter += 1
           val row = partition.next()
@@ -87,20 +83,20 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
           statement.setDate(1, partitionVal)
 
           // map fields
-          schema.foreach{ f =>
+          schema.foreach { f =>
             val fieldName = f.name
             val fieldIdx = row.fieldIndex(fieldName)
             val fieldVal = row.get(fieldIdx)
-            if(fieldVal != null)
+            if (fieldVal != null)
               statement.setObject(fieldIdx + 2, fieldVal)
-            else{
+            else {
               val defVal = defaultNullValue(f.dataType, fieldVal)
               statement.setObject(fieldIdx + 2, defVal)
             }
           }
           statement.addBatch()
 
-          if(counter >= batchSize){
+          if (counter >= batchSize) {
             val r = statement.executeBatch()
             totalInsert += r.sum
             counter = 0
@@ -108,7 +104,7 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
 
         } // end: while
 
-        if(counter > 0) {
+        if (counter > 0) {
           val r = statement.executeBatch()
           totalInsert += r.sum
           counter = 0
@@ -141,13 +137,13 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
     case _ => null
   }
 
-  private def createClickhouseTableDefinitionSQL(dbName: String, tableName: String, partitionColumnName: String, indexColumns: Seq[String])= {
+  private def createClickhouseTableDefinitionSQL(dbName: String, tableName: String, partitionColumnName: String, indexColumns: Seq[String]) = {
 
     val header = s"""
           CREATE TABLE IF NOT EXISTS $dbName.$tableName(
           """
 
-    val columns = s"$partitionColumnName Date" :: df.schema.map{ f =>
+    val columns = s"$partitionColumnName Date" :: df.schema.map { f =>
       Seq(f.name, sparkType2ClickhouseType(f.dataType)).mkString(" ")
     }.toList
     val columnsStr = columns.mkString(",\n")
@@ -159,13 +155,15 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
     Seq(header, columnsStr, footer).mkString("\n")
   }
 
-  private def sparkType2ClickhouseType(sparkType: org.apache.spark.sql.types.DataType)= sparkType match {
+  private def sparkType2ClickhouseType(sparkType: org.apache.spark.sql.types.DataType) = sparkType match {
     case LongType => "Int64"
     case DoubleType => "Float64"
     case FloatType => "Float32"
     case IntegerType => "Int32"
     case StringType => "String"
     case BooleanType => "UInt8"
+    case DateType => "DateTime"
+    case TimestampType => "DateTime"
     case _ => "unknown"
   }
 
