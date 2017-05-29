@@ -24,6 +24,9 @@ object ClickhouseConnectionFactory extends Serializable {
     dbO map { db => props.setProperty("database", db) }
     props.setProperty("max_memory_usage", "100000000000")
     props.setProperty("socket_timeout", "1000000")
+    props.setProperty("max_threads", "8")
+    props.setProperty("max_bytes_before_external_group_by", "80000000000")
+    props.setProperty("max_bytes_before_external_sort", "80000000000")
 
     val clickHouseProps = new ClickHouseProperties(props)
     new ClickHouseDataSource(s"jdbc:clickhouse://$host:$port", clickHouseProps)
