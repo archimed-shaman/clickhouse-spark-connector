@@ -1,7 +1,8 @@
 
-name := """clickhouse-spark-connector"""
 
-version := "1.3"
+name := """clickhouse-spark-connector"""
+organization := "com.semrush"
+version := "1.3.0"
 
 scalaVersion := "2.11.7"
 
