@@ -110,6 +110,8 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
           val r = statement.executeBatch()
           totalInsert += r.sum
           counter = 0
+          if (sleep > 0)
+            Thread.sleep(sleep)
         }
 
         // return: Seq((host, insertCount))
