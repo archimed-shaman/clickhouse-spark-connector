@@ -1,5 +1,5 @@
 
-name := """clickhouse-spark-connector_archimed"""
+name := """clickhouse-spark-connector"""
 
 version := "1.3"
 
