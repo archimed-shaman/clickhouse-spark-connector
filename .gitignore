@@ -21,6 +21,10 @@ out/
 .settings
 .target/
 
+# ensime
+.ensime
+.ensime_cache
+
 # Mac
 .DS_Store
 

@@ -41,7 +41,7 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
     }
   }
 
-  def saveToClickhouse(dbName: String, tableName: String, partitionFunc: (org.apache.spark.sql.Row) => java.sql.Date, partitionColumnName: String = "mock_date", clusterNameO: Option[String] = None, batchSize: Int = 100000)(implicit ds: ClickHouseDataSource) = {
+  def saveToClickhouse(dbName: String, tableName: String, partitionFunc: (org.apache.spark.sql.Row) => java.sql.Date, partitionColumnName: String = "mock_date", clusterNameO: Option[String] = None, batchSize: Int = 100000, sleep: Long = 0)(implicit ds: ClickHouseDataSource) = {
 
     val defaultHost = ds.getHost
     val defaultPort = ds.getPort
@@ -100,6 +100,8 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
             val r = statement.executeBatch()
             totalInsert += r.sum
             counter = 0
+            if (sleep > 0)
+              Thread.sleep(sleep)
           }
 
         } // end: while
