@@ -1,9 +1,10 @@
 package io.clickhouse.ext.spark
 
-import io.clickhouse.ext.{ ClickhouseClient, ClickhouseConnectionFactory }
+import io.clickhouse.ext.{ClickhouseClient, ClickhouseConnectionFactory}
 import ru.yandex.clickhouse.ClickHouseDataSource
 import io.clickhouse.ext.Utils._
 import org.apache.spark.sql.types._
+import java.net._
 
 object ClickhouseSparkExt {
   implicit def extraOperations(df: org.apache.spark.sql.DataFrame) = DataFrameExt(df)
@@ -54,14 +55,24 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
       case None =>
         (tableName, Seq(defaultHost))
     }
-
+    val clickHouseHostsSet = clickHouseHosts.toSet // set to search quick by hostname
     val schema = df.schema
 
     // following code is going to be run on executors
     val insertResults = df.rdd.mapPartitions((partition: Iterator[org.apache.spark.sql.Row]) => {
 
-      val rnd = scala.util.Random.nextInt(clickHouseHosts.length)
-      val targetHost = clickHouseHosts(rnd)
+      val localHostName = InetAddress.getLocalHost.getHostName // 
+
+      val targetHost = {
+        clickHouseHostsSet.contains(localHostName) match {
+          case true => localHostName // try find localhost name in the list of clickhouse hosts
+          case _ => {
+            val rnd = scala.util.Random.nextInt(clickHouseHosts.length)
+            clickHouseHosts(rnd)
+          }
+        }
+      }
+
       val targetHostDs = ClickhouseConnectionFactory.get(targetHost, defaultPort)
 
       // explicit closing
