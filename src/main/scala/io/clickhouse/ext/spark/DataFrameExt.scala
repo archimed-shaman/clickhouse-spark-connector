@@ -1,6 +1,6 @@
 package io.clickhouse.ext.spark
 
-import io.clickhouse.ext.{ClickhouseClient, ClickhouseConnectionFactory}
+import io.clickhouse.ext.{ ClickhouseClient, ClickhouseConnectionFactory }
 import ru.yandex.clickhouse.ClickHouseDataSource
 import io.clickhouse.ext.Utils._
 import org.apache.spark.sql.types._
