@@ -3,8 +3,9 @@ package io.clickhouse.ext
 import ru.yandex.clickhouse.ClickHouseDataSource
 import io.clickhouse.ext.Utils._
 
-case class ClickhouseClient(clusterNameO: Option[String] = None)(implicit ds: ClickHouseDataSource) {
+case class ClickhouseClient(settings: ClickhouseConnectionSettings)(implicit ds: ClickHouseDataSource) {
 
+  val clusterNameO: Option[String] = settings.cluster
   import io.clickhouse.ext.ClickhouseResultSetExt._
 
   def createDb(dbName: String) {
@@ -51,8 +52,9 @@ case class ClickhouseClient(clusterNameO: Option[String] = None)(implicit ds: Cl
 
   private def runOnAllNodes(sql: String) = {
     getClusterNodes().map { nodeIp =>
-      val nodeDs = ClickhouseConnectionFactory.get(nodeIp)
-      val client = ClickhouseClient()(nodeDs)
+      val remoteSettings = settings.copy(host = nodeIp)
+      val nodeDs = ClickhouseConnectionFactory.get(remoteSettings)
+      val client = ClickhouseClient(remoteSettings)(nodeDs)
       (nodeIp, client.query(sql))
     }
   }

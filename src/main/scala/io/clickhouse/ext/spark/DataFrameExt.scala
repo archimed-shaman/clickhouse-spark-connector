@@ -1,6 +1,6 @@
 package io.clickhouse.ext.spark
 
-import io.clickhouse.ext.{ ClickhouseClient, ClickhouseConnectionFactory }
+import io.clickhouse.ext.{ ClickhouseClient, ClickhouseConnectionFactory, ClickhouseConnectionSettings }
 import ru.yandex.clickhouse.ClickHouseDataSource
 import io.clickhouse.ext.Utils._
 import org.apache.spark.sql.types._
@@ -12,24 +12,34 @@ object ClickhouseSparkExt {
 
 case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable {
 
-  def dropClickhouseDb(dbName: String, clusterNameO: Option[String] = None)(implicit ds: ClickHouseDataSource) {
-    val client = ClickhouseClient(clusterNameO)(ds)
+  def dropClickhouseDb(settings: ClickhouseConnectionSettings)(implicit ds: ClickHouseDataSource) {
+    val dbName = settings.db
+    val clusterNameO = settings.cluster
+
+    val client = ClickhouseClient(settings)(ds)
     clusterNameO match {
       case None => client.dropDb(dbName)
       case Some(x) => client.dropDbCluster(dbName)
     }
   }
 
-  def createClickhouseDb(dbName: String, clusterNameO: Option[String] = None)(implicit ds: ClickHouseDataSource) {
-    val client = ClickhouseClient(clusterNameO)(ds)
+  def createClickhouseDb(settings: ClickhouseConnectionSettings)(implicit ds: ClickHouseDataSource) {
+    val dbName = settings.db
+    val clusterNameO = settings.cluster
+
+    val client = ClickhouseClient(settings)(ds)
     clusterNameO match {
       case None => client.createDb(dbName)
       case Some(x) => client.createDbCluster(dbName)
     }
   }
 
-  def createClickhouseTable(dbName: String, tableName: String, partitionColumnName: String, indexColumns: Seq[String], clusterNameO: Option[String] = None)(implicit ds: ClickHouseDataSource) {
-    val client = ClickhouseClient(clusterNameO)(ds)
+  def createClickhouseTable(settings: ClickhouseConnectionSettings, partitionColumnName: String, indexColumns: Seq[String])(implicit ds: ClickHouseDataSource) {
+    val dbName = settings.db
+    val tableName = settings.table
+    val clusterNameO = settings.cluster
+
+    val client = ClickhouseClient(settings)(ds)
     val sqlStmt = createClickhouseTableDefinitionSQL(dbName, tableName, partitionColumnName, indexColumns)
     clusterNameO match {
       case None => client.query(sqlStmt)
@@ -42,15 +52,18 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
     }
   }
 
-  def saveToClickhouse(dbName: String, tableName: String, partitionFunc: (org.apache.spark.sql.Row) => java.sql.Date, partitionColumnName: String = "mock_date", clusterNameO: Option[String] = None, batchSize: Int = 100000, sleep: Long = 0)(implicit ds: ClickHouseDataSource) = {
+  def saveToClickhouse(settings: ClickhouseConnectionSettings, partitionFunc: (org.apache.spark.sql.Row) => java.sql.Date, partitionColumnName: String = "mock_date", batchSize: Int = 100000, sleep: Long = 0)(implicit ds: ClickHouseDataSource) = {
 
     val defaultHost = ds.getHost
     val defaultPort = ds.getPort
+    val dbName = settings.db
+    val tableName = settings.table
+    val clusterNameO = settings.cluster
 
     val (clusterTableName, clickHouseHosts) = clusterNameO match {
       case Some(clusterName) =>
         // get nodes from cluster
-        val client = ClickhouseClient(clusterNameO)(ds)
+        val client = ClickhouseClient(settings)(ds)
         (s"${tableName}_all", client.getClusterNodes())
       case None =>
         (tableName, Seq(defaultHost))
@@ -73,7 +86,7 @@ case class DataFrameExt(df: org.apache.spark.sql.DataFrame) extends Serializable
         }
       }
 
-      val targetHostDs = ClickhouseConnectionFactory.get(targetHost, defaultPort)
+      val targetHostDs = ClickhouseConnectionFactory.get(settings)
 
       // explicit closing
       using(targetHostDs.getConnection) { conn =>

@@ -8,27 +8,37 @@ object ClickhouseConnectionFactory extends Serializable {
 
   private val dataSources = scala.collection.mutable.Map[(String, Int), ClickHouseDataSource]()
 
-  def get(host: String, port: Int = 8123): ClickHouseDataSource = {
+  def get(settings: ClickhouseConnectionSettings): ClickHouseDataSource = {
+    val host = settings.host
+    val port = settings.port
     dataSources.get((host, port)) match {
       case Some(ds) =>
         ds
       case None =>
-        val ds = createDatasource(host, port = port)
+        val ds = createDatasource(settings)
         dataSources += ((host, port) -> ds)
         ds
     }
   }
 
-  private def createDatasource(host: String, dbO: Option[String] = None, port: Int = 8123) = {
+  private def createDatasource(settings: ClickhouseConnectionSettings) = {
     val props = new Properties()
-    dbO map { db => props.setProperty("database", db) }
-    props.setProperty("max_memory_usage", "100000000000")
-    props.setProperty("socket_timeout", "1000000")
-    props.setProperty("max_threads", "8")
-    props.setProperty("max_bytes_before_external_group_by", "80000000000")
-    props.setProperty("max_bytes_before_external_sort", "80000000000")
+
+    props.setProperty("database", settings.db)
+
+    settings.user map { user => props.setProperty("user", user) }
+    settings.password map { pass => props.setProperty("password", pass) }
+
+    settings.props map {
+      case (k, v) => props.setProperty(k, v)
+    }
+    // props.setProperty("max_memory_usage", "100000000000")
+    // props.setProperty("socket_timeout", "1000000")
+    // props.setProperty("max_threads", "8")
+    // props.setProperty("max_bytes_before_external_group_by", "80000000000")
+    // props.setProperty("max_bytes_before_external_sort", "80000000000")
 
     val clickHouseProps = new ClickHouseProperties(props)
-    new ClickHouseDataSource(s"jdbc:clickhouse://$host:$port", clickHouseProps)
+    new ClickHouseDataSource(s"jdbc:clickhouse://${settings.host}:${settings.port}", clickHouseProps)
   }
 }
