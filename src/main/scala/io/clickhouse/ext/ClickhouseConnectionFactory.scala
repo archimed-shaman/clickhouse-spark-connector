@@ -26,19 +26,11 @@ object ClickhouseConnectionFactory extends Serializable {
 
     props.setProperty("database", settings.db)
 
-    settings.user map { user => props.setProperty("user", user) }
-    settings.password map { pass => props.setProperty("password", pass) }
-
     settings.props map {
       case (k, v) => props.setProperty(k, v)
     }
-    // props.setProperty("max_memory_usage", "100000000000")
-    // props.setProperty("socket_timeout", "1000000")
-    // props.setProperty("max_threads", "8")
-    // props.setProperty("max_bytes_before_external_group_by", "80000000000")
-    // props.setProperty("max_bytes_before_external_sort", "80000000000")
 
-    val clickHouseProps = new ClickHouseProperties(props)
+    val clickHouseProps = new ClickHouseProperties(props) withCredentials (settings.user.getOrElse(""), settings.password.getOrElse(""))
     new ClickHouseDataSource(s"jdbc:clickhouse://${settings.host}:${settings.port}", clickHouseProps)
   }
 }
