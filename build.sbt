@@ -11,7 +11,7 @@ scalaVersion := "2.11.7"
 libraryDependencies ++= Seq(
   "org.apache.spark" % "spark-core_2.11" % "2.3.0" % "provided",
   "org.apache.spark" % "spark-sql_2.11" % "2.3.0" % "provided",
-  "ru.yandex.clickhouse" % "clickhouse-jdbc" % "0.1.39",
+  "ru.yandex.clickhouse" % "clickhouse-jdbc" % "0.1.48",
   "org.scalatest" %% "scalatest" % "2.2.6" % "test",
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.11" % "2.6.5"
 )
